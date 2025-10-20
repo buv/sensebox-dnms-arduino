@@ -12,6 +12,7 @@ void SenseBoxAP::begin() {
     WiFi.softAP(_apSsid.c_str(), _apPassword.c_str());
     _readWiFi();
     _readIds();
+    _readUdp();
     _setupRoutes();
     _server.begin();
     
@@ -27,6 +28,7 @@ void SenseBoxAP::begin(const char* apSsid, const char* apPassword) {
     WiFi.softAP(_apSsid.c_str(), _apPassword.c_str());
     _readWiFi();
     _readIds();
+    _readUdp();
     _setupRoutes();
     _server.begin();
     
@@ -53,6 +55,15 @@ void SenseBoxAP::_readIds() {
     _preferences.end();
 }
 
+void SenseBoxAP::_readUdp() {
+    _preferences.begin("udp_storage", true);
+    _udpEnable = _preferences.getBool("udp_enable", false);
+    _udpHost = _preferences.getString("udp_host", "udp.host");
+    _udpPort = _preferences.getString("udp_port", "11883");
+    _udpFieldName = _preferences.getString("udp_field_name", "dB_A_avg");
+    _preferences.end();
+}
+
 void SenseBoxAP::_updateWiFiConnection(String newSSID, String newPassword) {
     _preferences.begin("wifi_storage", false);
     _preferences.putString("ssid", newSSID);
@@ -66,6 +77,15 @@ void SenseBoxAP::_updateIds(String senseboxId, String sensorId1, String sensorId
     _preferences.putString("loudness_min", sensorId1);
     _preferences.putString("loudness_max", sensorId2);
     _preferences.putString("loudness_avg", sensorId3);
+    _preferences.end();
+}
+
+void SenseBoxAP::_updateUdp(bool udpEnable, String udpHost, String udpPort, String udpFieldName) {
+    _preferences.begin("udp_storage", false);
+    _preferences.putBool("udp_enable", udpEnable);
+    _preferences.putString("udp_host", udpHost);
+    _preferences.putString("udp_port", udpPort);
+    _preferences.putString("udp_field_name", udpFieldName);
     _preferences.end();
 }
 
@@ -123,6 +143,17 @@ String SenseBoxAP::_buildHTMLString() {
     html += "<label for='sensor_id_3'>Lautstärke (Avg):</label>";
     html += "<input type='text' id='sensor_id_3' name='sensor_id_3' value='" + _sensorId3 + "' required>";
     
+    html += "<h2>UDP Einstellungen</h2>";
+
+    html += "<label for='udp_enable'>UDP Aktivieren:</label>";
+    html += "<input type='checkbox' id='udp_enable' name='udp_enable' " + String(_udpEnable ? "checked" : "") + ">";
+    html += "<label for='udp_host'>UDP Host Name:</label>";
+    html += "<input type='text' id='udp_host' name='udp_host' value='" + _udpHost + "'>";
+    html += "<label for='udp_port'>UDP Port:</label>";
+    html += "<input type='text' id='udp_port' name='udp_port' value='" + _udpPort + "'>";
+    html += "<label for='udp_field_name'>UDP JSON Feldname für Messwert:</label>";
+    html += "<input type='text' id='udp_field_name' name='udp_field_name' value='" + _udpFieldName + "'>";
+    
     html += "<input type='submit' value='Speichern & Neustarten'>";
     html += "</form>";
     
@@ -141,6 +172,10 @@ String SenseBoxAP::_buildHTMLString() {
     html += "<div class='status-item'><span class='status-label'>Sensor ID 1 (Min):</span> <span class='status-value'>" + _sensorId1 + "</span></div>";
     html += "<div class='status-item'><span class='status-label'>Sensor ID 2 (Max):</span> <span class='status-value'>" + _sensorId2 + "</span></div>";
     html += "<div class='status-item'><span class='status-label'>Sensor ID 3 (Avg):</span> <span class='status-value'>" + _sensorId3 + "</span></div>";
+    html += "<div class='status-item'><span class='status-label'>UDP Aktiviert:</span> <span class='status-value'>" + String(_udpEnable ? "Ja" : "Nein") + "</span></div>";
+    html += "<div class='status-item'><span class='status-label'>UDP Host:</span> <span class='status-value'>" + _udpHost + "</span></div>";
+    html += "<div class='status-item'><span class='status-label'>UDP Port:</span> <span class='status-value'>" + _udpPort + "</span></div>";
+    html += "<div class='status-item'><span class='status-label'>UDP JSON Feldname:</span> <span class='status-value'>" + _udpFieldName + "</span></div>";
     html += "</div>";
     
     html += "</div>";
@@ -216,6 +251,12 @@ void SenseBoxAP::_setupRoutes() {
             request->arg("sensor_id_2"),
             request->arg("sensor_id_3")
         );
+        _updateUdp(
+            request->hasArg("udp_enable") ? true : false,
+            request->arg("udp_host"),
+            request->arg("udp_port"),
+            request->arg("udp_field_name")
+        );
         String saveHtml = _buildSaveString();
         request->send(200, "text/html", saveHtml);
     });
@@ -226,6 +267,12 @@ void SenseBoxAP::_setupRoutes() {
             request->arg("sensor_id_1"),
             request->arg("sensor_id_2"),
             request->arg("sensor_id_3")
+        );
+        _updateUdp(
+            request->hasArg("udp_enable") ? true : false,
+            request->arg("udp_host"),
+            request->arg("udp_port"),
+            request->arg("udp_field_name")
         );
         String html = _buildIdsSaveString();
         request->send(200, "text/html", html);

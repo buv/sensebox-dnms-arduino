@@ -30,11 +30,17 @@ private:
     String _sensorId1;
     String _sensorId2;
     String _sensorId3;
+    bool _udpEnable;
+    String _udpHost;
+    String _udpPort;
+    String _udpFieldName;
     
     void _readWiFi();
     void _readIds();
+    void _readUdp();
     void _updateWiFiConnection(String newSSID, String newPassword);
     void _updateIds(String senseboxId, String sensorId1, String sensorId2, String sensorId3);
+    void _updateUdp(bool udpEnable, String udpHost, String udpPort, String udpFieldName);
     String _buildHTMLString();
     String _buildSaveString();
     String _buildIdsSaveString();
